@@ -18,29 +18,38 @@ class Redis implements Adapter
 
     private $options;
     private $redis;
+    private $redisFlag = false;
 
-    public function __construct(array $options = array())
+    public function __construct(array $options = array(), $redis = null)
     {
         // with php 5.3 we cannot initialize the options directly on the field definition
         // so we initialize them here for now
-        if (!isset(self::$defaultOptions['host'])) {
-            self::$defaultOptions['host'] = '127.0.0.1';
-        }
-        if (!isset(self::$defaultOptions['port'])) {
-            self::$defaultOptions['port'] = 6379;
-        }
-        if (!isset(self::$defaultOptions['timeout'])) {
-            self::$defaultOptions['timeout'] = 0.1; // in seconds
-        }
-        if (!isset(self::$defaultOptions['read_timeout'])) {
-            self::$defaultOptions['read_timeout'] = 10; // in seconds
-        }
-        if (!isset(self::$defaultOptions['persistent_connections'])) {
-            self::$defaultOptions['persistent_connections'] = false;
-        }
+        if ($redis instanceof \Redis) {
+            $this->redis = $redis;
+            $this->redisFlag = true;
+        } else {
+            if (!isset(self::$defaultOptions['host'])) {
+                self::$defaultOptions['host'] = '127.0.0.1';
+            }
+            if (!isset(self::$defaultOptions['port'])) {
+                self::$defaultOptions['port'] = 6379;
+            }
+            if (!isset(self::$defaultOptions['timeout'])) {
+                self::$defaultOptions['timeout'] = 0.1; // in seconds
+            }
+            if (!isset(self::$defaultOptions['read_timeout'])) {
+                self::$defaultOptions['read_timeout'] = 10; // in seconds
+            }
+            if (!isset(self::$defaultOptions['persistent_connections'])) {
+                self::$defaultOptions['persistent_connections'] = false;
+            }
+            if (!isset(self::$defaultOptions['auth'])) {
+                self::$defaultOptions['auth'] = false;
+            }
 
-        $this->options = array_merge(self::$defaultOptions, $options);
-        $this->redis = new \Redis();
+            $this->options = array_merge(self::$defaultOptions, $options);
+            $this->redis = new \Redis();
+        }
     }
 
     /**
@@ -85,6 +94,9 @@ class Redis implements Adapter
      */
     private function openConnection()
     {
+        if ($this->redisFlag) {
+            return;
+        }
         try {
             if ($this->options['persistent_connections']) {
                 @$this->redis->pconnect($this->options['host'], $this->options['port'], $this->options['timeout']);
@@ -92,6 +104,9 @@ class Redis implements Adapter
                 @$this->redis->connect($this->options['host'], $this->options['port'], $this->options['timeout']);
             }
             $this->redis->setOption(\Redis::OPT_READ_TIMEOUT, $this->options['read_timeout']);
+            if ($this->options["auth"]) {
+                $this->redis->auth($this->options["auth"]);
+            }
         } catch (\RedisException $e) {
             throw new StorageException("Can't connect to Redis server", 0, $e);
         }
