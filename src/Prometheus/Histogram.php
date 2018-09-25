@@ -39,11 +39,15 @@ class Histogram extends Collector
                 );
             }
         }
-        foreach ($buckets as $bucket) {
+        foreach ($buckets as $key => $bucket) {
             if ($bucket == 'le') {
                 throw new \InvalidArgumentException("Histogram cannot have a label named 'le'.");
             }
+            
+            // keep one decimal
+            $buckets[$key] = sprintf("%.1f", $bucket);
         }
+        
         $this->buckets = $buckets;
     }
 
